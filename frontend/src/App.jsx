@@ -4,7 +4,10 @@ import Layout from './layouts/Layout';
 import Dashboard from './pages/Dashboard';
 import Employees from './pages/Employees';
 import LeaveRequests from './pages/LeaveRequests';
+import SignIn from './pages/SignIn';
+import SignUp from './pages/SignUp';
 import NotFound from './pages/NotFound';
+import ProtectedRoute from './components/ProtectedRoute';
 import { ToastProvider } from './components/Toast';
 
 export function App() {
@@ -12,12 +15,21 @@ export function App() {
     <ToastProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Navigate to="/" replace />} />
-            <Route path="employees" element={<Employees />} />
-            <Route path="leaves" element={<LeaveRequests />} />
-            <Route path="*" element={<NotFound />} />
+          {/* Public Authentication Routes */}
+          <Route path="/login" element={<SignIn />} />
+          <Route path="/signin" element={<Navigate to="/login" replace />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/register" element={<Navigate to="/signup" replace />} />
+
+          {/* Protected Administrative Dashboard Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Navigate to="/" replace />} />
+              <Route path="employees" element={<Employees />} />
+              <Route path="leaves" element={<LeaveRequests />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
           </Route>
         </Routes>
       </BrowserRouter>

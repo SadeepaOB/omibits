@@ -8,7 +8,9 @@ import {
   X,
   Briefcase,
   ShieldAlert,
+  LogOut,
 } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 export function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -90,6 +92,17 @@ export function Layout() {
         </nav>
 
         <div className="sidebar-footer">
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+            }}
+            className="btn btn-secondary btn-sm"
+            style={{ width: '100%', marginBottom: '12px', justifyContent: 'center' }}
+            title="Sign out of administrative account"
+          >
+            <LogOut size={14} />
+            <span>Sign Out</span>
+          </button>
           <div className="admin-demo-pill" title="Demonstration Mode">
             <ShieldAlert size={14} color="#f59e0b" />
             <span>Admin Demonstration</span>
