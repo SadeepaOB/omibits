@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { Briefcase, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Briefcase, Lock, Mail, UserCog, Users } from 'lucide-react';
 
 export function SignUp() {
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [role, setRole]         = useState('employee'); // 'employee' | 'admin'
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,7 +21,6 @@ export function SignUp() {
       setError('Please provide both email and password.');
       return;
     }
-
     if (password.length < 6) {
       setError('Password must be at least 6 characters.');
       return;
@@ -32,6 +32,9 @@ export function SignUp() {
       const { data, error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
+        options: {
+          data: { role }, // stored in user_metadata
+        },
       });
 
       if (authError) {
@@ -39,16 +42,16 @@ export function SignUp() {
         return;
       }
 
-      // Do NOT auto-login. If Supabase auto-created a session, sign out.
+      // Do NOT auto-login. Sign out if Supabase auto-created a session.
       if (data?.session) {
         await supabase.auth.signOut();
       }
 
-      // Redirect user to the Sign In page with pre-filled email and verification message
+      // Redirect to Sign In with a success message
       navigate('/login', {
         state: {
           email: cleanEmail,
-          message: 'Your account has been created. Please check your email and verify your address before logging in.',
+          message: `Account created as ${role === 'admin' ? 'Admin' : 'Employee'}. Check your email to verify before logging in.`,
         },
       });
     } catch (err) {
@@ -97,6 +100,87 @@ export function SignUp() {
         {/* Sign Up Form */}
         <form onSubmit={handleSubmit} noValidate>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* ── Role Selector ── */}
+            <div className="form-group">
+              <label>Account Type <span className="required">*</span></label>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '10px',
+                  marginTop: '4px',
+                }}
+              >
+                {/* Employee option */}
+                <button
+                  type="button"
+                  onClick={() => setRole('employee')}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '14px 10px',
+                    borderRadius: 'var(--radius-md)',
+                    border: `2px solid ${role === 'employee' ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                    background: role === 'employee' ? 'var(--color-primary-light)' : 'var(--color-bg-surface)',
+                    cursor: 'pointer',
+                    color: role === 'employee' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    transition: 'all 0.15s ease',
+                  }}
+                  aria-pressed={role === 'employee'}
+                  title="Select Employee role"
+                >
+                  <Users size={22} />
+                  Employee
+                </button>
+
+                {/* Admin option */}
+                <button
+                  type="button"
+                  onClick={() => setRole('admin')}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '14px 10px',
+                    borderRadius: 'var(--radius-md)',
+                    border: `2px solid ${role === 'admin' ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                    background: role === 'admin' ? 'var(--color-primary-light)' : 'var(--color-bg-surface)',
+                    cursor: 'pointer',
+                    color: role === 'admin' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    transition: 'all 0.15s ease',
+                  }}
+                  aria-pressed={role === 'admin'}
+                  title="Select Admin role"
+                >
+                  <UserCog size={22} />
+                  Admin
+                </button>
+              </div>
+
+              {/* Role description */}
+              <p
+                style={{
+                  marginTop: '8px',
+                  fontSize: '12px',
+                  color: 'var(--color-text-muted)',
+                  lineHeight: '1.5',
+                }}
+              >
+                {role === 'admin'
+                  ? '🛡️ Admins can review, approve, and reject employee leave requests.'
+                  : '📋 Employees can submit and track their own leave requests.'}
+              </p>
+            </div>
+
+            {/* Email */}
             <div className="form-group">
               <label htmlFor="signup-email">
                 Email Address <span className="required">*</span>
@@ -117,6 +201,7 @@ export function SignUp() {
               </div>
             </div>
 
+            {/* Password */}
             <div className="form-group">
               <label htmlFor="signup-password">
                 Password <span className="required">*</span>
@@ -143,11 +228,11 @@ export function SignUp() {
               disabled={loading}
               style={{ width: '100%', padding: '10px 16px', marginTop: '4px' }}
             >
-              {loading ? 'Creating account...' : 'Sign Up'}
+              {loading ? 'Creating account...' : `Sign Up as ${role === 'admin' ? 'Admin' : 'Employee'}`}
             </button>
           </div>
 
-          {/* Error Message Displayed Under Form */}
+          {/* Error Message */}
           {error && (
             <div
               style={{

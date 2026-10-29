@@ -1,36 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
 /**
  * ProtectedRoute Component
- * Guards private pages using supabase.auth.getSession().
- * If no active session exists, redirects the user to /login.
+ * Guards private pages using the shared AuthContext session.
+ * - If still loading session: shows a spinner.
+ * - If no session: redirects to /login.
+ * - If allowedRoles is specified: only users with a matching role may enter;
+ *   others are redirected to their appropriate home page.
+ *
+ * Usage:
+ *   <Route element={<ProtectedRoute />}>          — any authenticated user
+ *   <Route element={<ProtectedRoute allowedRoles={['admin']} />}>  — admins only
  */
-export function ProtectedRoute({ children }) {
-  const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState(null);
-
-  useEffect(() => {
-    // 1. Check current active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    // 2. Listen for auth state changes (login, logout, token refresh)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      setSession(currentSession);
-      setLoading(false);
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, []);
+export function ProtectedRoute({ allowedRoles, children }) {
+  const { session, role, loading } = useAuth();
 
   if (loading) {
     return (
@@ -48,8 +34,14 @@ export function ProtectedRoute({ children }) {
     );
   }
 
+  // Not authenticated → go to login
   if (!session) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Role-restricted route: redirect to home if role doesn't match
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Navigate to="/" replace />;
   }
 
   return children ? children : <Outlet />;

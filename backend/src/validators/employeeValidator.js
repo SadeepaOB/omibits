@@ -34,4 +34,9 @@ export const validateCreateEmployee = [
     .withMessage('Department cannot be blank.')
     .isLength({ max: 100 })
     .withMessage('Department cannot exceed 100 characters.'),
+
+  body('employee_type')
+    .optional()
+    .isIn(['Admin', 'Employee'])
+    .withMessage('Employee type must be either Admin or Employee.'),
 ];

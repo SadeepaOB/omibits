@@ -132,6 +132,7 @@ export function Employees() {
                   <th>Employee Name</th>
                   <th>Email Address</th>
                   <th>Department</th>
+                  <th>Employee Type</th>
                   <th>Created Date</th>
                 </tr>
               </thead>
@@ -155,6 +156,25 @@ export function Employees() {
                         <Building2 size={14} color="var(--color-text-muted)" />
                         <span style={{ fontWeight: 500 }}>{emp.department}</span>
                       </div>
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '2px 10px',
+                          borderRadius: '999px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          background:
+                            emp.employee_type === 'Admin'    ? '#fdf4ff' :
+                            emp.employee_type === 'Employee' ? '#eff6ff' : '#f1f5f9',
+                          color:
+                            emp.employee_type === 'Admin'    ? '#9333ea' :
+                            emp.employee_type === 'Employee' ? '#2563eb' : '#64748b',
+                        }}
+                      >
+                        {emp.employee_type || '—'}
+                      </span>
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>

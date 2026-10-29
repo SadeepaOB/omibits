@@ -13,6 +13,11 @@ const DEPARTMENTS = [
   'Operations',
 ];
 
+const EMPLOYEE_TYPES = [
+  { value: 'Employee', label: 'Employee' },
+  { value: 'Admin',    label: 'Admin'    },
+];
+
 export function EmployeeModal({ isOpen, onClose, onEmployeeCreated }) {
   const { showSuccess, showError } = useToast();
 
@@ -20,6 +25,7 @@ export function EmployeeModal({ isOpen, onClose, onEmployeeCreated }) {
     name: '',
     email: '',
     department: 'Engineering',
+    employee_type: 'Employee',
   });
 
   const [errors, setErrors] = useState({});
@@ -61,11 +67,12 @@ export function EmployeeModal({ isOpen, onClose, onEmployeeCreated }) {
         name: formData.name.trim(),
         email: formData.email.trim(),
         department: formData.department.trim(),
+        employee_type: formData.employee_type,
       });
 
       showSuccess(`Employee '${newEmployee.name}' created successfully!`);
       // Reset form
-      setFormData({ name: '', email: '', department: 'Engineering' });
+      setFormData({ name: '', email: '', department: 'Engineering', employee_type: 'Employee' });
       setErrors({});
       onEmployeeCreated(newEmployee);
       onClose();
@@ -158,6 +165,24 @@ export function EmployeeModal({ isOpen, onClose, onEmployeeCreated }) {
                 ))}
               </select>
               {errors.department && <span className="form-error">{errors.department}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="emp-type">
+                Employee Type <span className="required">*</span>
+              </label>
+              <select
+                id="emp-type"
+                value={formData.employee_type}
+                onChange={(e) => setFormData({ ...formData, employee_type: e.target.value })}
+                disabled={isSubmitting}
+              >
+                {EMPLOYEE_TYPES.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

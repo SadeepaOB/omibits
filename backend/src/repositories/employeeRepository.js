@@ -13,15 +13,15 @@ const useSupabaseClient = () => {
 
 /**
  * Insert a new employee into the database.
- * @param {Object} employeeData - { name, email, department }
+ * @param {Object} employeeData - { name, email, department, employee_type }
  * @returns {Promise<Object>} Created employee row
  */
-export async function create({ name, email, department }) {
+export async function create({ name, email, department, employee_type = 'Full-Time' }) {
   if (useSupabaseClient()) {
     const { data, error } = await supabase
       .from('employees')
-      .insert([{ name, email, department }])
-      .select('id, name, email, department, created_at, updated_at')
+      .insert([{ name, email, department, employee_type }])
+      .select('id, name, email, department, employee_type, created_at, updated_at')
       .single();
 
     if (error) {
@@ -36,11 +36,11 @@ export async function create({ name, email, department }) {
   }
 
   const sql = `
-    INSERT INTO employees (name, email, department, created_at, updated_at)
-    VALUES ($1, $2, $3, NOW(), NOW())
-    RETURNING id, name, email, department, created_at, updated_at;
+    INSERT INTO employees (name, email, department, employee_type, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, NOW(), NOW())
+    RETURNING id, name, email, department, employee_type, created_at, updated_at;
   `;
-  const result = await query(sql, [name, email, department]);
+  const result = await query(sql, [name, email, department, employee_type]);
   return result.rows[0];
 }
 
@@ -53,12 +53,12 @@ export async function findAll({ search } = {}) {
   if (useSupabaseClient()) {
     let q = supabase
       .from('employees')
-      .select('id, name, email, department, created_at, updated_at')
+      .select('id, name, email, department, employee_type, created_at, updated_at')
       .order('id', { ascending: true });
 
     if (search && search.trim() !== '') {
       const term = search.trim();
-      q = q.or(`name.ilike.%${term}%,email.ilike.%${term}%,department.ilike.%${term}%`);
+      q = q.or(`name.ilike.%${term}%,email.ilike.%${term}%,department.ilike.%${term}%,employee_type.ilike.%${term}%`);
     }
 
     const { data, error } = await q;
@@ -67,14 +67,14 @@ export async function findAll({ search } = {}) {
   }
 
   let sql = `
-    SELECT id, name, email, department, created_at, updated_at
+    SELECT id, name, email, department, employee_type, created_at, updated_at
     FROM employees
   `;
   const params = [];
 
   if (search && search.trim() !== '') {
     params.push(`%${search.trim()}%`);
-    sql += ` WHERE (name ILIKE $1 OR email ILIKE $1 OR department ILIKE $1)`;
+    sql += ` WHERE (name ILIKE $1 OR email ILIKE $1 OR department ILIKE $1 OR employee_type ILIKE $1)`;
   }
 
   sql += ` ORDER BY id ASC;`;
@@ -92,7 +92,7 @@ export async function findById(id) {
   if (useSupabaseClient()) {
     const { data, error } = await supabase
       .from('employees')
-      .select('id, name, email, department, created_at, updated_at')
+      .select('id, name, email, department, employee_type, created_at, updated_at')
       .eq('id', id)
       .maybeSingle();
 
@@ -101,7 +101,7 @@ export async function findById(id) {
   }
 
   const sql = `
-    SELECT id, name, email, department, created_at, updated_at
+    SELECT id, name, email, department, employee_type, created_at, updated_at
     FROM employees
     WHERE id = $1;
   `;
@@ -118,7 +118,7 @@ export async function findByEmail(email) {
   if (useSupabaseClient()) {
     const { data, error } = await supabase
       .from('employees')
-      .select('id, name, email, department, created_at, updated_at')
+      .select('id, name, email, department, employee_type, created_at, updated_at')
       .ilike('email', email)
       .maybeSingle();
 
@@ -127,7 +127,7 @@ export async function findByEmail(email) {
   }
 
   const sql = `
-    SELECT id, name, email, department, created_at, updated_at
+    SELECT id, name, email, department, employee_type, created_at, updated_at
     FROM employees
     WHERE LOWER(email) = LOWER($1);
   `;

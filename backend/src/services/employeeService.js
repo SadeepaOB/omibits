@@ -11,11 +11,13 @@ import { BadRequestError, ConflictError, NotFoundError } from '../utils/errors.j
  * Rules:
  * - name, email, department must not be blank.
  * - email must be unique (case-insensitive).
+ * - employee_type defaults to 'Full-Time' if not provided.
  */
-export async function createEmployee({ name, email, department }) {
+export async function createEmployee({ name, email, department, employee_type = 'Employee' }) {
   const cleanName = (name || '').trim();
   const cleanEmail = (email || '').trim().toLowerCase();
   const cleanDepartment = (department || '').trim();
+  const cleanType = (employee_type || 'Employee').trim();
 
   if (!cleanName) {
     throw new BadRequestError('Employee name is required and cannot be blank.');
@@ -35,6 +37,11 @@ export async function createEmployee({ name, email, department }) {
     throw new BadRequestError('Department is required.');
   }
 
+  const validTypes = ['Admin', 'Employee'];
+  if (!validTypes.includes(cleanType)) {
+    throw new BadRequestError('Employee type must be either Admin or Employee.');
+  }
+
   // Check if an employee with this email already exists (case-insensitive)
   const existing = await employeeRepository.findByEmail(cleanEmail);
   if (existing) {
@@ -46,6 +53,7 @@ export async function createEmployee({ name, email, department }) {
       name: cleanName,
       email: cleanEmail,
       department: cleanDepartment,
+      employee_type: cleanType,
     });
     return newEmployee;
   } catch (err) {
