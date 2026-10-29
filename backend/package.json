@@ -1,0 +1,35 @@
+{
+  "name": "leave-management-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Omibits Employee Leave Management System",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate": "node src/config/migrate.js",
+    "seed": "node src/config/seed.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.0.0",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0",
+    "vitest": "^3.0.7"
+  },
+  "keywords": [
+    "express",
+    "nodejs",
+    "postgresql",
+    "supabase"
+  ],
+  "author": "Sadeepa Bandara",
+  "license": "Apache-2.0"
+}
