@@ -3,12 +3,35 @@
  * Accurately simulates PostgreSQL behavior, constraints, and error codes.
  */
 
-export function createMockDatabase() {
+export const sampleInitialData = {
+  employees: [
+    { id: 1, name: 'Kasun Perera', email: 'kasun.perera@omibits.com', department: 'Engineering', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 2, name: 'Dilani Fernando', email: 'dilani.fernando@omibits.com', department: 'Quality Assurance', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 3, name: 'Nuwan Silva', email: 'nuwan.silva@omibits.com', department: 'Product Management', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 4, name: 'Tharushi Wickramasinghe', email: 'tharushi.w@omibits.com', department: 'Engineering', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 5, name: 'Sahan Jayawardena', email: 'sahan.j@omibits.com', department: 'Human Resources', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  ],
+  leaveRequests: [
+    { id: 1, employee_id: 1, leave_type: 'Annual', start_date: '2026-11-05', end_date: '2026-11-08', reason: 'Family vacation to Nuwara Eliya', status: 'Pending', rejection_reason: null, created_at: new Date(Date.now() - 2 * 86400000).toISOString(), updated_at: new Date().toISOString() },
+    { id: 2, employee_id: 2, leave_type: 'Casual', start_date: '2026-11-02', end_date: '2026-11-02', reason: 'Personal matter at the bank', status: 'Approved', rejection_reason: null, created_at: new Date(Date.now() - 4 * 86400000).toISOString(), updated_at: new Date().toISOString() },
+    { id: 3, employee_id: 3, leave_type: 'Medical', start_date: '2026-10-25', end_date: '2026-10-27', reason: 'Fever and doctor advised bed rest', status: 'Approved', rejection_reason: null, created_at: new Date(Date.now() - 5 * 86400000).toISOString(), updated_at: new Date().toISOString() },
+    { id: 4, employee_id: 4, leave_type: 'Casual', start_date: '2026-11-12', end_date: '2026-11-14', reason: 'Attending a tech conference abroad', status: 'Rejected', rejection_reason: 'Critical sprint delivery deadline during this week. Please reschedule.', created_at: new Date(Date.now() - 1 * 86400000).toISOString(), updated_at: new Date().toISOString() },
+  ]
+};
+
+export function createMockDatabase(initialData = null) {
   let employeeIdCounter = 1;
   let leaveIdCounter = 1;
 
   let employees = [];
   let leaveRequests = [];
+
+  if (initialData) {
+    employees = initialData.employees ? JSON.parse(JSON.stringify(initialData.employees)) : [];
+    leaveRequests = initialData.leaveRequests ? JSON.parse(JSON.stringify(initialData.leaveRequests)) : [];
+    employeeIdCounter = employees.length + 1;
+    leaveIdCounter = leaveRequests.length + 1;
+  }
 
   function reset() {
     employeeIdCounter = 1;

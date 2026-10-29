@@ -1,7 +1,7 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
 
-// Load environment variables from .env file (or parent .env)
+// Load environment variables from .env file
 dotenv.config();
 
 const { Pool } = pg;
@@ -32,34 +32,54 @@ if (isSupabase || isProduction) {
 let poolInstance = connectionString ? new Pool(poolConfig) : null;
 
 if (poolInstance) {
-  // Listen for unexpected pool errors on idle clients
   poolInstance.on('error', (err) => {
     console.error('Unexpected error on idle PostgreSQL client:', err.message);
   });
 }
 
+// Fallback for development demonstration when DATABASE_URL is not yet configured locally
+let fallbackDevDb = null;
+if (!connectionString && process.env.NODE_ENV !== 'test') {
+  console.log('-------------------------------------------------------------------');
+  console.log('ℹ️  [NOTICE] DATABASE_URL is not set.');
+  console.log('   Running with in-memory development database for demonstration.');
+  console.log('   To connect to your real Supabase PostgreSQL database, configure');
+  console.log('   DATABASE_URL in backend/.env or the root .env file.');
+  console.log('-------------------------------------------------------------------');
+  const { createMockDatabase, sampleInitialData } = await import('../../tests/mockDb.js');
+  fallbackDevDb = createMockDatabase(sampleInitialData);
+}
+
 /**
- * Execute a parameterized SQL query using the pool.
+ * Execute a parameterized SQL query using the pool or dev demo database.
  * @param {string} text - SQL query string with parameterized placeholders ($1, $2, ...)
  * @param {Array} params - Array of parameter values
  * @returns {Promise<pg.QueryResult>}
  */
 export async function query(text, params) {
-  if (!poolInstance) {
-    throw new Error('Database pool is not configured. Please check your DATABASE_URL environment variable.');
+  if (poolInstance) {
+    return poolInstance.query(text, params);
   }
-  return poolInstance.query(text, params);
+  if (fallbackDevDb) {
+    return fallbackDevDb.query(text, params);
+  }
+  throw new Error('Database pool is not configured. Please check your DATABASE_URL environment variable.');
 }
 
 /**
  * Get a client from the pool for manual transactions.
- * Remember to release the client when done!
  */
 export async function getClient() {
-  if (!poolInstance) {
-    throw new Error('Database pool is not configured. Please check your DATABASE_URL environment variable.');
+  if (poolInstance) {
+    return poolInstance.connect();
   }
-  return poolInstance.connect();
+  if (fallbackDevDb) {
+    return {
+      query: fallbackDevDb.query,
+      release: () => {},
+    };
+  }
+  throw new Error('Database pool is not configured. Please check your DATABASE_URL environment variable.');
 }
 
 /**
