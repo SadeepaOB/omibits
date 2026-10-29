@@ -1,10 +1,15 @@
 import { query } from '../config/db.js';
+import supabase from '../config/supabase.js';
 
 /**
  * Leave Request Repository
- * Handles all direct database operations for the `leave_requests` table.
- * All queries use parameterized inputs ($1, $2, ...) to prevent SQL injection.
+ * Handles direct database operations for the `leave_requests` table.
+ * Supports direct Supabase Data API client as well as standard PostgreSQL pool (pg).
  */
+
+const useSupabaseClient = () => {
+  return Boolean(supabase && !process.env.DATABASE_URL && process.env.NODE_ENV !== 'test');
+};
 
 /**
  * Insert a new leave request.
@@ -13,6 +18,26 @@ import { query } from '../config/db.js';
  * @returns {Promise<Object>} Created leave request row
  */
 export async function create({ employeeId, leaveType, startDate, endDate, reason }) {
+  if (useSupabaseClient()) {
+    const { data, error } = await supabase
+      .from('leave_requests')
+      .insert([
+        {
+          employee_id: employeeId,
+          leave_type: leaveType,
+          start_date: startDate,
+          end_date: endDate,
+          reason,
+          status: 'Pending',
+        },
+      ])
+      .select('id, employee_id, leave_type, start_date, end_date, reason, status, rejection_reason, created_at, updated_at')
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
   const sql = `
     INSERT INTO leave_requests (
       employee_id, leave_type, start_date, end_date, reason, status, created_at, updated_at
@@ -31,6 +56,68 @@ export async function create({ employeeId, leaveType, startDate, endDate, reason
  * @returns {Promise<Array>} List of leave requests with employee details
  */
 export async function findAll({ status, leaveType, department, search, limit, offset } = {}) {
+  if (useSupabaseClient()) {
+    let q = supabase
+      .from('leave_requests')
+      .select(`
+        id,
+        employee_id,
+        leave_type,
+        start_date,
+        end_date,
+        reason,
+        status,
+        rejection_reason,
+        created_at,
+        updated_at,
+        employees (
+          name,
+          email,
+          department
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (status && status.trim() !== '') {
+      q = q.eq('status', status.trim());
+    }
+    if (leaveType && leaveType.trim() !== '') {
+      q = q.eq('leave_type', leaveType.trim());
+    }
+    if (department && department.trim() !== '') {
+      q = q.eq('employees.department', department.trim());
+    }
+    if (search && search.trim() !== '') {
+      const term = search.trim();
+      q = q.or(`reason.ilike.%${term}%,employees.name.ilike.%${term}%,employees.email.ilike.%${term}%`);
+    }
+
+    if (limit) {
+      const from = offset || 0;
+      const to = from + Number(limit) - 1;
+      q = q.range(from, to);
+    }
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    return (data || []).map((row) => ({
+      id: row.id,
+      employee_id: row.employee_id,
+      employee_name: row.employees?.name || '',
+      employee_email: row.employees?.email || '',
+      employee_department: row.employees?.department || '',
+      leave_type: row.leave_type,
+      start_date: row.start_date,
+      end_date: row.end_date,
+      reason: row.reason,
+      status: row.status,
+      rejection_reason: row.rejection_reason,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }));
+  }
+
   let sql = `
     SELECT 
       lr.id,
@@ -95,11 +182,31 @@ export async function findAll({ status, leaveType, department, search, limit, of
 }
 
 /**
- * Count leave requests matching filter criteria (useful for pagination or counts).
+ * Count leave requests matching filter criteria.
  * @param {Object} filters
  * @returns {Promise<number>}
  */
 export async function countFiltered({ status, leaveType, department, search } = {}) {
+  if (useSupabaseClient()) {
+    let q = supabase
+      .from('leave_requests')
+      .select('*, employees!inner(department)', { count: 'exact', head: true });
+
+    if (status && status.trim() !== '') {
+      q = q.eq('status', status.trim());
+    }
+    if (leaveType && leaveType.trim() !== '') {
+      q = q.eq('leave_type', leaveType.trim());
+    }
+    if (department && department.trim() !== '') {
+      q = q.eq('employees.department', department.trim());
+    }
+
+    const { count, error } = await q;
+    if (error) throw error;
+    return count || 0;
+  }
+
   let sql = `
     SELECT COUNT(*)::int AS count
     FROM leave_requests lr
@@ -144,6 +251,49 @@ export async function countFiltered({ status, leaveType, department, search } = 
  * @returns {Promise<Object|null>}
  */
 export async function findById(id) {
+  if (useSupabaseClient()) {
+    const { data, error } = await supabase
+      .from('leave_requests')
+      .select(`
+        id,
+        employee_id,
+        leave_type,
+        start_date,
+        end_date,
+        reason,
+        status,
+        rejection_reason,
+        created_at,
+        updated_at,
+        employees (
+          name,
+          email,
+          department
+        )
+      `)
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      employee_id: data.employee_id,
+      employee_name: data.employees?.name || '',
+      employee_email: data.employees?.email || '',
+      employee_department: data.employees?.department || '',
+      leave_type: data.leave_type,
+      start_date: data.start_date,
+      end_date: data.end_date,
+      reason: data.reason,
+      status: data.status,
+      rejection_reason: data.rejection_reason,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
+  }
+
   const sql = `
     SELECT 
       lr.id,
@@ -169,12 +319,28 @@ export async function findById(id) {
 
 /**
  * Atomically approve a pending leave request.
- * Uses conditional SQL: only updates when status = 'Pending'.
- * This guarantees race-condition safety and idempotency.
+ * Uses conditional update: only updates when status = 'Pending'.
  * @param {number|string} id
- * @returns {Promise<Object|null>} Updated row if successful, null if not pending/not found
+ * @returns {Promise<Object|null>}
  */
 export async function approveAtomic(id) {
+  if (useSupabaseClient()) {
+    const { data, error } = await supabase
+      .from('leave_requests')
+      .update({
+        status: 'Approved',
+        rejection_reason: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .eq('status', 'Pending')
+      .select('id, employee_id, leave_type, start_date, end_date, reason, status, rejection_reason, created_at, updated_at')
+      .maybeSingle();
+
+    if (error) throw error;
+    return data || null;
+  }
+
   const sql = `
     UPDATE leave_requests
     SET status = 'Approved', rejection_reason = NULL, updated_at = NOW()
@@ -187,12 +353,29 @@ export async function approveAtomic(id) {
 
 /**
  * Atomically reject a pending leave request with a mandatory rejection reason.
- * Uses conditional SQL: only updates when status = 'Pending'.
+ * Uses conditional update: only updates when status = 'Pending'.
  * @param {number|string} id
  * @param {string} rejectionReason
- * @returns {Promise<Object|null>} Updated row if successful, null if not pending/not found
+ * @returns {Promise<Object|null>}
  */
 export async function rejectAtomic(id, rejectionReason) {
+  if (useSupabaseClient()) {
+    const { data, error } = await supabase
+      .from('leave_requests')
+      .update({
+        status: 'Rejected',
+        rejection_reason: rejectionReason,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .eq('status', 'Pending')
+      .select('id, employee_id, leave_type, start_date, end_date, reason, status, rejection_reason, created_at, updated_at')
+      .maybeSingle();
+
+    if (error) throw error;
+    return data || null;
+  }
+
   const sql = `
     UPDATE leave_requests
     SET status = 'Rejected', rejection_reason = $2, updated_at = NOW()
@@ -204,10 +387,28 @@ export async function rejectAtomic(id, rejectionReason) {
 }
 
 /**
- * Aggregate dashboard statistics in a single efficient SQL query.
+ * Aggregate dashboard statistics in a single query.
  * @returns {Promise<Object>} Summary counts
  */
 export async function getDashboardStats() {
+  if (useSupabaseClient()) {
+    const [empRes, allLeaves, pendingLeaves, approvedLeaves, rejectedLeaves] = await Promise.all([
+      supabase.from('employees').select('*', { count: 'exact', head: true }),
+      supabase.from('leave_requests').select('*', { count: 'exact', head: true }),
+      supabase.from('leave_requests').select('*', { count: 'exact', head: true }).eq('status', 'Pending'),
+      supabase.from('leave_requests').select('*', { count: 'exact', head: true }).eq('status', 'Approved'),
+      supabase.from('leave_requests').select('*', { count: 'exact', head: true }).eq('status', 'Rejected'),
+    ]);
+
+    return {
+      totalEmployees: empRes.count || 0,
+      totalRequests: allLeaves.count || 0,
+      pendingRequests: pendingLeaves.count || 0,
+      approvedRequests: approvedLeaves.count || 0,
+      rejectedRequests: rejectedLeaves.count || 0,
+    };
+  }
+
   const sql = `
     SELECT
       (SELECT COUNT(*)::int FROM employees) AS total_employees,

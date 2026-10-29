@@ -1,12 +1,17 @@
 import app from './app.js';
 import { closePool } from './config/db.js';
 
+import { isSupabaseConfigured } from './config/supabase.js';
+
 const PORT = process.env.PORT || 5001;
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Omibits Leave Management Backend running on port ${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+  if (isSupabaseConfigured) {
+    console.log(`⚡ Supabase Data API: Connected to ${process.env.SUPABASE_URL || 'https://syfmcwnmvxvgkwgknwsj.supabase.co'}`);
+  }
 });
 
 // Handle graceful shutdown on termination signals
